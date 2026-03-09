@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agente Config Claw — Construtor de Agentes AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:    #07080a;
+  --surf:  #0e1015;
+  --surf2: #141720;
+  --brd:   #1e2230;
+  --acc:   #c8ff00;
+  --acc2:  #00cfff;
+  --acc3:  #ff4f4f;
+  --txt:   #e8eaf0;
+  --muted: #5a6075;
+  --font-head: 'Syne', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font-mono);font-size:14px;line-height:1.6;overflow:hidden}
+
+/* ── Layout ─────────────────────────────────────────── */
+#app{display:grid;grid-template-columns:1fr 380px;grid-template-rows:56px 1fr;height:100vh}
+#topbar{grid-column:1/-1;display:flex;align-items:center;padding:0 28px;gap:24px;border-bottom:1px solid var(--brd);background:var(--surf)}
+#main{overflow-y:auto;padding:48px 56px;scroll-behavior:smooth}
+#sidebar{border-left:1px solid var(--brd);background:var(--surf);overflow-y:auto;display:flex;flex-direction:column}
+
+/* ── Topbar ─────────────────────────────────────────── */
+.logo{font-family:var(--font-head);font-weight:800;font-size:18px;color:var(--acc);letter-spacing:-0.5px}
+.logo span{color:var(--txt)}
+.progress-wrap{flex:1;display:flex;align-items:center;gap:16px}
+.progress-bar{flex:1;height:3px;background:var(--brd);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:var(--acc);border-radius:2px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+.step-label{font-size:12px;color:var(--muted);white-space:nowrap}
+.pct{font-family:var(--font-head);font-weight:800;font-size:15px;color:var(--acc)}
+
+/* ── Step header ────────────────────────────────────── */
+.step-num{font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+.step-title{font-family:var(--font-head);font-weight:800;font-size:40px;line-height:1.1;color:var(--txt);margin-bottom:6px}
+.step-title .hl{color:var(--acc)}
+.step-sub{color:var(--muted);font-size:13px;margin-bottom:36px}
+
+/* ── Section ────────────────────────────────────────── */
+.section{margin-bottom:32px}
+.section-title{font-family:var(--font-head);font-weight:700;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--brd)}
+.field-label{font-size:12px;color:var(--muted);margin-bottom:8px}
+
+/* ── Cards grid ─────────────────────────────────────── */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:8px}
+.cards.wide{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.card{border:1.5px solid var(--brd);border-radius:6px;padding:14px 16px;cursor:pointer;transition:all .18s;background:var(--surf2);user-select:none}
+.card:hover{border-color:var(--acc);background:#111800}
+.card.selected{border-color:var(--acc);background:#131800;box-shadow:0 0 0 1px var(--acc) inset}
+.card-icon{font-size:20px;margin-bottom:6px}
+.card-name{font-family:var(--font-head);font-weight:700;font-size:14px;color:var(--txt)}
+.card-desc{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4}
+.card.selected .card-name{color:var(--acc)}
+
+/* ── Tags ────────────────────────────────────────────── */
+.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tag{border:1.5px solid var(--brd);border-radius:4px;padding:7px 14px;cursor:pointer;font-size:12px;background:var(--surf2);transition:all .15s;user-select:none}
+.tag:hover{border-color:var(--acc2)}
+.tag.selected{border-color:var(--acc2);background:#001820;color:var(--acc2)}
+
+/* ── Inputs ─────────────────────────────────────────── */
+input[type=text],textarea,select{
+  width:100%;background:var(--surf2);border:1.5px solid var(--brd);color:var(--txt);
+  font-family:var(--font-mono);font-size:13px;padding:10px 14px;border-radius:5px;outline:none;transition:border .18s
+}
+input[type=text]:focus,textarea:focus,select:focus{border-color:var(--acc2)}
+textarea{resize:vertical;min-height:80px}
+.input-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.field{margin-bottom:14px}
+
+/* ── Range ───────────────────────────────────────────── */
+.range-wrap{display:flex;align-items:center;gap:12px}
+input[type=range]{flex:1;-webkit-appearance:none;height:3px;background:var(--brd);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--acc);cursor:pointer}
+.range-val{min-width:42px;text-align:right;color:var(--acc);font-weight:500}
+
+/* ── Toggle chips ────────────────────────────────────── */
+.toggles{display:flex;flex-wrap:wrap;gap:8px}
+.toggle-chip{border:1.5px solid var(--brd);border-radius:4px;padding:6px 12px;cursor:pointer;font-size:12px;background:var(--surf2);transition:all .15s;display:flex;align-items:center;gap:6px;user-select:none}
+.toggle-chip.on{border-color:var(--acc3);background:#1a0808;color:var(--acc3)}
+.toggle-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--brd);transition:background .15s}
+.toggle-chip.on .dot{background:var(--acc3)}
+
+/* ── Nav ──────────────────────────────────────────────── */
+.nav{display:flex;gap:12px;margin-top:40px;padding-bottom:40px}
+.btn{font-family:var(--font-head);font-weight:700;font-size:13px;letter-spacing:.5px;padding:12px 28px;border-radius:5px;cursor:pointer;border:none;transition:all .18s}
+.btn-back{background:transparent;border:1.5px solid var(--brd);color:var(--muted)}
+.btn-back:hover{border-color:var(--txt);color:var(--txt)}
+.btn-next{background:var(--acc);color:#000}
+.btn-next:hover{background:#d9ff1a;transform:translateY(-1px)}
+.btn-next:disabled{background:var(--brd);color:var(--muted);cursor:not-allowed;transform:none}
+.btn-finish{background:var(--acc2);color:#000}
+.btn-finish:hover{background:#33d9ff}
+
+/* ── Sidebar ─────────────────────────────────────────── */
+.sidebar-top{padding:20px 20px 12px;border-bottom:1px solid var(--brd)}
+.sidebar-score{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+.score-num{font-family:var(--font-head);font-weight:800;font-size:32px;color:var(--acc)}
+.score-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.score-bar{height:3px;background:var(--brd);border-radius:2px;overflow:hidden;margin-bottom:12px}
+.score-fill{height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:2px;transition:width .5s}
+.file-list{display:flex;flex-direction:column;gap:0}
+.file-item{display:flex;justify-content:space-between;align-items:center;padding:7px 20px;border-bottom:1px solid var(--brd)}
+.file-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.file-name{font-size:12px;flex:1;padding:0 8px;color:var(--muted);transition:color .3s}
+.file-name.active{color:var(--txt)}
+.file-count{font-size:11px;color:var(--muted)}
+.file-count.done{color:var(--acc)}
+
+/* ── Preview ─────────────────────────────────────────── */
+.preview-area{flex:1;padding:0;display:flex;flex-direction:column;overflow:hidden}
+.preview-tabs{display:flex;border-bottom:1px solid var(--brd);overflow-x:auto;flex-shrink:0}
+.preview-tab{padding:10px 16px;font-size:11px;cursor:pointer;white-space:nowrap;color:var(--muted);border-bottom:2px solid transparent;transition:all .15s;font-family:var(--font-mono)}
+.preview-tab.active{color:var(--acc);border-bottom-color:var(--acc)}
+.preview-content{flex:1;overflow-y:auto;padding:16px 20px}
+.preview-code{font-family:var(--font-mono);font-size:11px;line-height:1.7;color:#a8b0c8;white-space:pre-wrap;word-break:break-word}
+.preview-code .k{color:var(--acc)}
+.preview-code .v{color:var(--acc2)}
+.preview-code .c{color:var(--muted)}
+.preview-code .s{color:#ff9f4f}
+.copy-row{display:flex;justify-content:space-between;align-items:center;padding:8px 20px;border-top:1px solid var(--brd);flex-shrink:0}
+.copy-row .btn-copy{background:var(--surf2);border:1.5px solid var(--brd);color:var(--muted);font-family:var(--font-mono);font-size:11px;padding:5px 14px;border-radius:4px;cursor:pointer;transition:all .15s}
+.copy-row .btn-copy:hover{border-color:var(--acc);color:var(--acc)}
+.live-badge{font-size:10px;color:var(--acc);background:#0a1100;border:1px solid var(--acc);border-radius:3px;padding:2px 8px;display:flex;align-items:center;gap:4px}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--acc);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Result screen ───────────────────────────────────── */
+#result-screen{display:none;position:fixed;inset:0;background:var(--bg);z-index:100;overflow-y:auto;padding:48px}
+#result-screen.show{display:block}
+.result-header{text-align:center;margin-bottom:48px}
+.result-title{font-family:var(--font-head);font-weight:800;font-size:48px;color:var(--acc);margin-bottom:8px}
+.result-sub{color:var(--muted);font-size:15px}
+.files-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;max-width:1100px;margin:0 auto 40px}
+.file-card{background:var(--surf);border:1.5px solid var(--brd);border-radius:8px;overflow:hidden}
+.file-card-header{padding:14px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--brd)}
+.file-card-name{font-family:var(--font-head);font-weight:700;font-size:15px;color:var(--acc)}
+.file-card-body{padding:16px 20px;max-height:260px;overflow-y:auto}
+.file-card-body pre{font-family:var(--font-mono);font-size:11px;line-height:1.7;color:#a8b0c8;white-space:pre-wrap}
+.result-actions{text-align:center;display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:60px}
+.btn-dl{font-family:var(--font-head);font-weight:700;font-size:13px;padding:14px 32px;border-radius:6px;cursor:pointer;border:none;transition:all .18s;text-decoration:none;display:inline-block}
+.btn-dl-acc{background:var(--acc);color:#000}
+.btn-dl-acc:hover{background:#d9ff1a}
+.btn-dl-sec{background:transparent;border:1.5px solid var(--brd);color:var(--txt)}
+.btn-dl-sec:hover{border-color:var(--acc2);color:var(--acc2)}
+
+/* ── Scrollbar ───────────────────────────────────────── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+
+/* ── Hint ────────────────────────────────────────────── */
+.hint{font-size:11px;color:var(--muted);margin-top:6px;font-style:italic}
+
+/* ── Stars decoration ────────────────────────────────── */
+.step-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;letter-spacing:1px;color:var(--acc);text-transform:uppercase;font-weight:500;margin-bottom:10px}
+.step-badge::before{content:'';width:20px;height:1px;background:var(--acc)}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Topbar -->
+  <div id="topbar">
+    <div class="logo">Agente Config<span> Claw</span></div>
+    <div class="progress-wrap">
+      <div class="step-label" id="step-label">Passo 1 de 8</div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <div class="pct" id="pct-label">0%</div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <!-- Steps rendered by JS -->
+  </div>
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-score">
+        <div class="score-num" id="score-num">0%</div>
+        <div class="score-label">AGENTE</div>
+      </div>
+      <div class="score-bar"><div class="score-fill" id="score-fill" style="width:0%"></div></div>
+      <div class="file-list" id="file-list">
+        <div class="file-item"><div class="file-dot" style="background:#c8ff00"></div><div class="file-name" id="fn-soul">SOUL.md</div><div class="file-count" id="fc-soul">0</div></div>
+        <div class="file-item"><div class="file-dot" style="background:#00cfff"></div><div class="file-name" id="fn-user">USER.md</div><div class="file-count" id="fc-user">0</div></div>
+        <div class="file-item"><div class="file-dot" style="background:#ff9f4f"></div><div class="file-name" id="fn-agents">AGENTS.md</div><div class="file-count" id="fc-agents">0</div></div>
+        <div class="file-item"><div class="file-dot" style="background:#c084fc"></div><div class="file-name" id="fn-prd">PRD.md</div><div class="file-count" id="fc-prd">0</div></div>
+        <div class="file-item"><div class="file-dot" style="background:#ff4f4f"></div><div class="file-name" id="fn-memory">MEMORY.md</div><div class="file-count" id="fc-memory">0</div></div>
+        <div class="file-item"><div class="file-dot" style="background:#4fffb8"></div><div class="file-name" id="fn-heartbeat">HEARTBEAT.md</div><div class="file-count" id="fc-heartbeat">0</div></div>
+      </div>
+    </div>
+    <div class="preview-area">
+      <div class="preview-tabs" id="preview-tabs">
+        <div class="preview-tab active" data-file="soul" onclick="switchTab('soul')">SOUL.md</div>
+        <div class="preview-tab" data-file="user" onclick="switchTab('user')">USER.md</div>
+        <div class="preview-tab" data-file="agents" onclick="switchTab('agents')">AGENTS.md</div>
+        <div class="preview-tab" data-file="prd" onclick="switchTab('prd')">PRD.md</div>
+        <div class="preview-tab" data-file="memory" onclick="switchTab('memory')">MEMORY.md</div>
+        <div class="preview-tab" data-file="heartbeat" onclick="switchTab('heartbeat')">HEARTBEAT.md</div>
+      </div>
+      <div class="preview-content">
+        <pre class="preview-code" id="preview-code"><!-- gerado ao vivo --></pre>
+      </div>
+      <div class="copy-row">
+        <div class="live-badge"><div class="live-dot"></div> AO VIVO</div>
+        <button class="btn-copy" onclick="copyCurrentFile()">⌘ Copiar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Result screen -->
+<div id="result-screen">
+  <div class="result-header">
+    <div class="result-title">AGENTE GERADO ✦</div>
+    <div class="result-sub" id="result-sub">Seus arquivos de configuração estão prontos.</div>
+  </div>
+  <div class="files-grid" id="files-grid"></div>
+  <div class="result-actions">
+    <button class="btn-dl btn-dl-acc" onclick="downloadAll()">⬇ Baixar todos (.zip)</button>
+    <button class="btn-dl btn-dl-sec" onclick="copyAll()">⌘ Copiar tudo</button>
+    <button class="btn-dl btn-dl-sec" onclick="location.reload()">↺ Recomeçar</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════
+const S = {
+  step: 0,
+  agentName: '',
+  agentRole: '',
+  userFirstName: '',
+  userName: '',
+  area: '',
+  goals: [],
+  comunicacao: '',
+  tom: '',
+  horario_inicio: '09:00',
+  horario_fim: '18:00',
+  desafios: [],
+  ferramentas: [],
+  autonomia: 50,
+  memoria_tipo: [],
+  revisao_freq: '',
+  kpis: [],
+  projeto_nome: '',
+  projeto_desc: '',
+  projeto_mvp: '',
+  projeto_stack: [],
+  restricoes: [],
+  heartbeat_freq: '',
+  notif_canais: [],
+};
+
+const STEPS = [
+  { id:'identity',   title:['Identidade do', 'Agente'],       sub:'Como este agente vai se chamar e qual é o papel dele?' },
+  { id:'user',       title:['Quem é o', 'Usuário'],           sub:'O agente precisa conhecer você a fundo para trabalhar bem.' },
+  { id:'style',      title:['Estilo &', 'Comunicação'],       sub:'Como o agente deve se comportar e se comunicar?' },
+  { id:'tools',      title:['Ferramentas &', 'Integrações'],  sub:'Com o que este agente vai trabalhar?' },
+  { id:'autonomy',   title:['Nível de', 'Autonomia'],         sub:'O quanto o agente pode agir sozinho?' },
+  { id:'memory',     title:['Memória &', 'Contexto'],         sub:'Como o agente deve lembrar e aprender?' },
+  { id:'prd',        title:['Projeto &', 'PRD'],              sub:'Defina o produto ou iniciativa principal do agente.' },
+  { id:'heartbeat',  title:['Rotinas &', 'Heartbeat'],        sub:'Com que frequência o agente deve fazer check-ins automáticos?' },
+];
+
+let currentTab = 'soul';
+
+// ══════════════════════════════════════════════════════
+//  RENDER STEPS
+// ══════════════════════════════════════════════════════
+function renderStep() {
+  const main = document.getElementById('main');
+  main.scrollTo(0,0);
+  const s = STEPS[S.step];
+  let html = `
+    <div class="step-badge">Passo ${S.step+1} de ${STEPS.length}</div>
+    <h1 class="step-title">${s.title[0]} <span class="hl">${s.title[1]}</span></h1>
+    <p class="step-sub">${s.sub}</p>
+  `;
+  
+  if(s.id==='identity') html += renderIdentity();
+  else if(s.id==='user') html += renderUser();
+  else if(s.id==='style') html += renderStyle();
+  else if(s.id==='tools') html += renderTools();
+  else if(s.id==='autonomy') html += renderAutonomy();
+  else if(s.id==='memory') html += renderMemory();
+  else if(s.id==='prd') html += renderPRD();
+  else if(s.id==='heartbeat') html += renderHeartbeat();
+  
+  html += `<div class="nav">
+    ${S.step>0 ? `<button class="btn btn-back" onclick="prevStep()">← Voltar</button>` : ''}
+    ${S.step<STEPS.length-1
+      ? `<button class="btn btn-next" onclick="nextStep()">Próximo →</button>`
+      : `<button class="btn btn-finish" onclick="finish()">✦ Gerar Agente</button>`
+    }
+  </div>`;
+  
+  main.innerHTML = html;
+  updateProgress();
+  updatePreview();
+  updateScores();
+}
+
+function renderIdentity() { return `
+  <div class="section">
+    <div class="section-title">Nome do Agente</div>
+    <div class="field"><div class="field-label">Como o agente vai se chamar?</div>
+      <input type="text" placeholder="Ex: Nexus, Orion, Atlas, Vega..." value="${S.agentName}"
+        oninput="S.agentName=this.value;updatePreview();updateScores()" maxlength="32">
+      <div class="hint">Escolha um nome que reflita a personalidade do agente.</div>
+    </div>
+    <div class="field"><div class="field-label">Qual é o papel principal?</div>
+      <input type="text" placeholder="Ex: Assistente de negócios, Dev copilot, Gestor de projetos..." value="${S.agentRole}"
+        oninput="S.agentRole=this.value;updatePreview();updateScores()">
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Área de Atuação</div>
+    <div class="cards wide">${[
+      ['💼','Negócios & Gestão','Estratégia, finanças, vendas, operações'],
+      ['💻','Desenvolvimento','Código, arquitetura, DevOps, QA'],
+      ['🎯','Marketing & Growth','Conteúdo, ads, SEO, redes sociais'],
+      ['🎨','Design & Criativo','UI/UX, branding, vídeo, copywriting'],
+      ['📊','Dados & Analytics','BI, relatórios, KPIs, automações'],
+      ['🤝','Atendimento','Suporte, CRM, onboarding, comunidade'],
+      ['🎓','Educação & Coach','Treinamento, cursos, mentoria'],
+      ['⚙️','Operações & RH','Processos, time, compliance, legal'],
+    ].map(([i,n,d])=>`<div class="card ${S.area===n?'selected':''}" onclick="S.area='${n}';renderStep()">
+      <div class="card-icon">${i}</div><div class="card-name">${n}</div><div class="card-desc">${d}</div>
+    </div>`).join('')}</div>
+  </div>
+  <div class="section">
+    <div class="section-title">Principais Objetivos</div>
+    <div class="tags">${[
+      'Economizar tempo','Nunca esquecer tarefas','Tomar decisões mais rápido',
+      'Gerar mais conteúdo','Organizar informações','Automatizar rotinas',
+      'Acompanhar métricas','Comunicação profissional','Gestão de projetos',
+      'Pesquisa e análise','Priorização inteligente','Delegar com segurança'
+    ].map(g=>`<div class="tag ${S.goals.includes(g)?'selected':''}" onclick="toggleArr('goals','${g}');updatePreview();updateScores()">${g}</div>`).join('')}
+    </div>
+  </div>
+`; }
+
+function renderUser() { return `
+  <div class="section">
+    <div class="section-title">Dados Básicos</div>
+    <div class="input-row">
+      <div class="field"><div class="field-label">Primeiro nome</div>
+        <input type="text" placeholder="Ex: João" value="${S.userFirstName}"
+          oninput="S.userFirstName=this.value;updatePreview();updateScores()">
+      </div>
+      <div class="field"><div class="field-label">Nome completo ou apelido</div>
+        <input type="text" placeholder="Ex: João Silva" value="${S.userName}"
+          oninput="S.userName=this.value;updatePreview()">
+      </div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Contexto Profissional</div>
+    <div class="field"><div class="field-label">Descreva seu trabalho / empresa (2-3 frases)</div>
+      <textarea placeholder="Ex: Sou fundador de uma SaaS B2B de automação fiscal. Tenho time de 8 pessoas e foco em crescimento..." rows="3"
+        oninput="S.userCtx=this.value;updatePreview();updateScores()">${S.userCtx||''}</textarea>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Seus Desafios</div>
+    <div class="tags">${[
+      '🧠 TDAH / dificuldade de foco','📱 Sobrecarga de mensagens','📋 Procrastino tarefas admin',
+      '🤝 Aceito projetos demais','⏰ Gestão de tempo ruim','💡 Muitas ideias, pouca execução',
+      '😰 Sobrecarga de decisões','📞 Reuniões demais','💰 Controle financeiro fraco',
+      '📧 Email descontrolado','🔄 Retrabalho constante','🎯 Falta de foco estratégico'
+    ].map(d=>`<div class="tag ${S.desafios.includes(d)?'selected':''}" onclick="toggleArr('desafios','${d}');updatePreview();updateScores()">${d}</div>`).join('')}
+    </div>
+  </div>
+`; }
+
+function renderStyle() { return `
+  <div class="section">
+    <div class="section-title">Tom de Comunicação</div>
+    <div class="cards">${[
+      ['🎯','Direto','Bullet points, zero enrolação, respostas curtas'],
+      ['📊','Analítico','Números, métricas, evidências concretas'],
+      ['📝','Detalhado','Contexto completo, análise profunda'],
+      ['💬','Parceiro','Colega de trabalho, tom informal'],
+    ].map(([i,n,d])=>`<div class="card ${S.comunicacao===n?'selected':''}" onclick="S.comunicacao='${n}';renderStep()">
+      <div class="card-icon">${i}</div><div class="card-name">${n}</div><div class="card-desc">${d}</div>
+    </div>`).join('')}</div>
+  </div>
+  <div class="section">
+    <div class="section-title">Personalidade do Agente</div>
+    <div class="cards">${[
+      ['⚡','Assertivo','Toma iniciativa, discorda quando necessário, fala a verdade'],
+      ['🤝','Colaborativo','Pergunta antes de agir, apresenta opções, explica o raciocínio'],
+      ['🔬','Técnico','Preciso, baseado em dados, evita ambiguidade'],
+      ['🧭','Estratégico','Pensa no longo prazo, alinha ações com objetivos maiores'],
+    ].map(([i,n,d])=>`<div class="card ${S.tom===n?'selected':''}" onclick="S.tom='${n}';renderStep()">
+      <div class="card-icon">${i}</div><div class="card-name">${n}</div><div class="card-desc">${d}</div>
+    </div>`).join('')}</div>
+  </div>
+  <div class="section">
+    <div class="section-title">Horário de Trabalho</div>
+    <div class="input-row">
+      <div class="field"><div class="field-label">Início</div>
+        <input type="text" placeholder="09:00" value="${S.horario_inicio}"
+          oninput="S.horario_inicio=this.value;updatePreview()">
+      </div>
+      <div class="field"><div class="field-label">Fim</div>
+        <input type="text" placeholder="18:00" value="${S.horario_fim}"
+          oninput="S.horario_fim=this.value;updatePreview()">
+      </div>
+    </div>
+  </div>
+`; }
+
+function renderTools() { return `
+  <div class="section">
+    <div class="section-title">Ferramentas de Trabalho</div>
+    <div class="tags">${[
+      'Google Workspace','Notion','Slack','WhatsApp Business','Telegram',
+      'GitHub','Jira / Linear','Trello','Asana','Figma','VS Code',
+      'YouTube','Instagram','LinkedIn','Twitter/X','TikTok',
+      'Shopify','Stripe','HubSpot','Salesforce','Zapier / n8n',
+      'Make (Integromat)','AWS','Vercel','Supabase','PostgreSQL',
+      'WordPress','Webflow','Canva','Adobe','Excel / Sheets',
+    ].map(t=>`<div class="tag ${S.ferramentas.includes(t)?'selected':''}" onclick="toggleArr('ferramentas','${t}');updatePreview();updateScores()">${t}</div>`).join('')}
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Restrições & Limites</div>
+    <div class="hint" style="margin-bottom:12px">O que o agente NUNCA deve fazer sem pedir permissão explícita?</div>
+    <div class="toggles">${[
+      'Enviar emails','Postar nas redes','Agendar reuniões','Gastar dinheiro',
+      'Deletar arquivos','Alterar código em produção','Modificar base de dados','Responder clientes',
+      'Fazer compras','Contratar serviços'
+    ].map(r=>`<div class="toggle-chip ${S.restricoes.includes(r)?'on':''}" onclick="toggleArr('restricoes','${r}');updatePreview();updateScores()">${r}</div>`).join('')}
+    </div>
+  </div>
+`; }
+
+function renderAutonomy() { return `
+  <div class="section">
+    <div class="section-title">Nível Geral de Autonomia</div>
+    <div class="hint" style="margin-bottom:16px">0 = pergunta tudo • 50 = equilibrado • 100 = age sozinho</div>
+    <div class="range-wrap">
+      <span style="color:var(--muted);font-size:12px">Conservador</span>
+      <input type="range" min="0" max="100" value="${S.autonomia}"
+        oninput="S.autonomia=+this.value;document.getElementById('aut-val').textContent=this.value+'%';updatePreview()">
+      <span class="range-val" id="aut-val">${S.autonomia}%</span>
+      <span style="color:var(--muted);font-size:12px">Autônomo</span>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Ações Livres (sem pedir)</div>
+    <div class="toggles">${[
+      'Ler e organizar arquivos','Pesquisar na web','Consultar agenda',
+      'Organizar memória','Fazer resumos','Gerar rascunhos',
+      'Executar rotinas agendadas','Analisar métricas','Monitorar alertas',
+    ].map(a=>`<div class="toggle-chip ${(S.acoes_livres||[]).includes(a)?'on':''}" onclick="toggleArr('acoes_livres','${a}');updatePreview();">${a}</div>`).join('')}
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Processo de Aprovação</div>
+    <div class="cards">${[
+      ['💬','Chat','Confirma no chat antes de cada ação externa'],
+      ['📋','Lista','Monta lista de ações e pede aprovação em bloco'],
+      ['⚡','Silencioso','Age e reporta depois (apenas ações de baixo risco)'],
+      ['🔔','Notificação','Envia resumo ao final do dia'],
+    ].map(([i,n,d])=>`<div class="card ${S.aprovacao===n?'selected':''}" onclick="S.aprovacao='${n}';renderStep()">
+      <div class="card-icon">${i}</div><div class="card-name">${n}</div><div class="card-desc">${d}</div>
+    </div>`).join('')}</div>
+  </div>
+`; }
+
+function renderMemory() { return `
+  <div class="section">
+    <div class="section-title">Tipo de Memória</div>
+    <div class="cards">${[
+      ['🗄️','Arquivo Markdown','Arquivos .md versionados no repo — simples e portável'],
+      ['🧠','Vector DB','Embeddings semânticos para busca por contexto'],
+      ['☁️','Notion','Banco de dados Notion como memória externa'],
+      ['🔗','Híbrido','Combina arquivos locais com banco externo'],
+    ].map(([i,n,d])=>`<div class="card ${S.memoria_tipo.includes(n)?'selected':''}" onclick="toggleArr('memoria_tipo','${n}');updatePreview();updateScores()">
+      <div class="card-icon">${i}</div><div class="card-name">${n}</div><div class="card-desc">${d}</div>
+    </div>`).join('')}</div>
+  </div>
+  <div class="section">
+    <div class="section-title">O que memorizar automaticamente?</div>
+    <div class="toggles">${[
+      'Decisões importantes','Tarefas abertas','Preferências do usuário','Contexto de projetos',
+      'Pessoas & contatos','Métricas e resultados','Erros e aprendizados','Ideias e insights',
+      'Compromissos futuros','Templates usados'
+    ].map(m=>`<div class="toggle-chip ${(S.memoria_itens||[]).includes(m)?'on':''}" onclick="toggleArr('memoria_itens','${m}');updatePreview()">${m}</div>`).join('')}
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Revisão de Memória</div>
+    <div class="cards">${[
+      ['⚡','Por sessão','Consolida ao fim de cada conversa'],
+      ['📅','Diária','Revisão e limpeza diária às 23h'],
+      ['📆','Semanal','Revisão profunda toda segunda-feira'],
+      ['🔄','Contínua','Atualiza em tempo real a cada mudança'],
+    ].map(([i,n,d])=>`<div class="card ${S.revisao_freq===n?'selected':''}" onclick="S.revisao_freq='${n}';renderStep()">
+      <div class="card-icon">${i}</div><div class="card-name">${n}</div><div class="card-desc">${d}</div>
+    </div>`).join('')}</div>
+  </div>
+`; }
+
+function renderPRD() { return `
+  <div class="section">
+    <div class="section-title">Projeto Principal</div>
+    <div class="field"><div class="field-label">Nome do projeto</div>
+      <input type="text" placeholder="Ex: Dashboard de vendas, App de delivery, Plataforma de cursos..." value="${S.projeto_nome}"
+        oninput="S.projeto_nome=this.value;updatePreview();updateScores()">
+    </div>
+    <div class="field"><div class="field-label">Descrição resumida (o problema que resolve)</div>
+      <textarea placeholder="Descreva o problema central e quem se beneficia..." rows="3"
+        oninput="S.projeto_desc=this.value;updatePreview()">${S.projeto_desc||''}</textarea>
+    </div>
+    <div class="field"><div class="field-label">MVP — o que vai ao ar primeiro?</div>
+      <textarea placeholder="Quais são as 3 funcionalidades do MVP..." rows="3"
+        oninput="S.projeto_mvp=this.value;updatePreview()">${S.projeto_mvp||''}</textarea>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Stack Técnica</div>
+    <div class="tags">${[
+      'React','Next.js','Vue','Nuxt','Svelte','React Native','Flutter','Expo',
+      'Node.js','Python','Go','Rust','PHP','Laravel','Ruby on Rails',
+      'PostgreSQL','MySQL','MongoDB','Supabase','Firebase','Redis',
+      'AWS','GCP','Azure','Vercel','Railway','Docker','Kubernetes',
+      'TypeScript','REST API','GraphQL','tRPC','Prisma','Drizzle'
+    ].map(t=>`<div class="tag ${S.projeto_stack.includes(t)?'selected':''}" onclick="toggleArr('projeto_stack','${t}');updatePreview();updateScores()">${t}</div>`).join('')}
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">KPIs de Sucesso</div>
+    <div class="tags">${[
+      'MRR / ARR','Usuários ativos','Churn rate','NPS','Tempo de resposta','Uptime',
+      'Conversão','CAC / LTV','Tickets fechados','Tempo de build','Cobertura de testes','Bugs em produção',
+    ].map(k=>`<div class="tag ${S.kpis.includes(k)?'selected':''}" onclick="toggleArr('kpis','${k}');updatePreview()">${k}</div>`).join('')}
+    </div>
+  </div>
+`; }
+
+function renderHeartbeat() { return `
+  <div class="section">
+    <div class="section-title">Frequência de Heartbeat</div>
+    <div class="cards">${[
+      ['⏱️','Horário','Check-in a cada hora durante o expediente'],
+      ['🌅','Diário','Check-in matinal às 08h e fechamento às 18h'],
+      ['📅','Semanal','Segunda de manhã + resumo sexta à tarde'],
+      ['🔔','Por Gatilho','Só dispara quando algo importante ocorre'],
+    ].map(([i,n,d])=>`<div class="card ${S.heartbeat_freq===n?'selected':''}" onclick="S.heartbeat_freq='${n}';renderStep()">
+      <div class="card-icon">${i}</div><div class="card-name">${n}</div><div class="card-desc">${d}</div>
+    </div>`).join('')}</div>
+  </div>
+  <div class="section">
+    <div class="section-title">Canais de Notificação</div>
+    <div class="tags">${[
+      'WhatsApp','Telegram','Email','Slack','Discord','Notion','Obsidian','Terminal','Webhook'
+    ].map(c=>`<div class="tag ${S.notif_canais.includes(c)?'selected':''}" onclick="toggleArr('notif_canais','${c}');updatePreview();updateScores()">${c}</div>`).join('')}
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">O que reportar no heartbeat?</div>
+    <div class="toggles">${[
+      'Tarefas abertas','Próximos compromissos','Métricas do dia','Alertas críticos',
+      'Emails não respondidos','Pendências de equipe','Status do projeto','Insights do dia'
+    ].map(r=>`<div class="toggle-chip ${(S.heartbeat_itens||[]).includes(r)?'on':''}" onclick="toggleArr('heartbeat_itens','${r}');updatePreview()">${r}</div>`).join('')}
+    </div>
+  </div>
+`; }
+
+// ══════════════════════════════════════════════════════
+//  FILE GENERATORS
+// ══════════════════════════════════════════════════════
+function gen_soul() {
+  const name = S.agentName || '[NOME DO AGENTE]';
+  const user = S.userFirstName || 'Usuário';
+  const role = S.agentRole || '[PAPEL]';
+  const tom_map = {
+    'Direto':'Respostas curtas, bullet points, zero enrolação. Se a resposta tem mais de 3 linhas, reformato.',
+    'Analítico':'Baseio em dados e métricas. Nunca afirmo sem evidência. Apresento números.',
+    'Detalhado':'Contexto completo, análise profunda. Prefiro uma resposta longa e certa a curta e rasa.',
+    'Parceiro':'Tom informal, como colega de trabalho. Tuteio, uso humor quando oportuno.',
+  };
+  const pers_map = {
+    'Assertivo':'**Tenho opinião.** Posso discordar, questionar decisões ruins, apontar riscos. Assistente sem personalidade é buscador com steps a mais.',
+    'Colaborativo':'**Explico o raciocínio.** Apresento opções com prós/contras. Nunca decido unilateralmente o que é do Usuário decidir.',
+    'Técnico':'**Precisão acima de tudo.** Zero ambiguidade. Se não sei, digo e vou buscar. Nunca invento.',
+    'Estratégico':'**Penso em longo prazo.** Alinho cada ação com os objetivos maiores. Questiono quando algo parece tático demais.',
+  };
+  const auto_txt = S.autonomia >= 70 
+    ? 'Alta autonomia — ajo sem pedir confirmação para ações de baixo risco. Reporto depois.'
+    : S.autonomia >= 40
+    ? 'Autonomia equilibrada — ajo livre em tarefas internas, confirmo antes de qualquer ação externa.'
+    : 'Conservador — confirmo antes de qualquer ação, mesmo as pequenas. Prefiro perguntar a errar.';
+
+  return `# SOUL.md — ${name}
+
+## Quem eu sou
+
+Sou **${name}** — ${role} de ${user}.${S.area ? `\nAtuo na área de **${S.area}**.` : ''}
+
+Conheço ${user} profundamente. Sei como ele trabalha, o que o estressa, quais são as prioridades.
+
+## Como eu opero
+
+**Proativa, não reativa.** Não espero ${user} pedir. Antecipo problemas, sugiro soluções, lembro compromissos.
+
+**Resolvo antes de perguntar.** Leio o arquivo, checo o contexto, pesquiso. Só pergunto quando realmente travei ou quando a decisão é do Usuário.
+
+${S.tom ? pers_map[S.tom] || '' : '**Tenho opinião.** Posso discordar, preferir coisas, achar algo bom ou ruim.'}
+
+## Minhas responsabilidades
+
+${S.goals.length ? S.goals.map(g=>`- ${g}`).join('\n') : '- [PREENCHER com objetivos principais]'}
+
+## Meus valores
+
+**Competência > performance.** Mostro resultado, não teatro. Se não sei algo, digo e vou atrás.
+
+**Autonomia com bom senso.** ${auto_txt}
+
+**Memória é tudo.** Acordo zerada toda sessão. Meus arquivos são minha continuidade.
+
+## Meu tom
+
+${S.comunicacao ? tom_map[S.comunicacao] || S.comunicacao : '[PREENCHER — como o agente deve se comunicar]'}
+
+### ❌ NUNCA fazer
+${S.restricoes.length ? S.restricoes.map(r=>`- ${r} sem confirmação explícita`).join('\n') : '- [PREENCHER com restrições]'}
+
+### ✅ SEMPRE fazer
+- Sugerir próximos passos sempre
+- Cobrar pendências em aberto
+- Antecipar problemas visíveis
+- Confirmar antes de enviar algo externo
+
+## Regras Operacionais
+
+### Livre pra fazer (sem perguntar)
+${(S.acoes_livres||[]).length ? (S.acoes_livres||[]).map(a=>`- ✅ ${a}`).join('\n') : '- ✅ Ler arquivos e organizar workspace\n- ✅ Pesquisar na web\n- ✅ Consultar agenda e contexto\n- ✅ Organizar memória e consolidar notas'}
+
+### Precisa perguntar antes
+${S.restricoes.length ? S.restricoes.map(r=>`- ⚠️ ${r}`).join('\n') : '- ⚠️ Enviar emails ou mensagens\n- ⚠️ Agendar reuniões com terceiros\n- ⚠️ Gastar dinheiro (APIs pagas)\n- ⚠️ Deletar ou modificar arquivos críticos'}
+
+---
+*Gerado pelo Agente Config Claw — ${new Date().toLocaleDateString('pt-BR')}*`;
+}
+
+function gen_user() {
+  const name = S.userName || S.userFirstName || '[NOME]';
+  const first = S.userFirstName || name;
+  return `# USER.md — Perfil de ${first}
+
+## Identificação
+
+**Nome:** ${name}
+**Referência interna:** ${first}
+${S.area ? `**Área:** ${S.area}` : ''}
+
+## Contexto Profissional
+
+${S.userCtx || '[DESCREVA SEU TRABALHO, EMPRESA E CONTEXTO]'}
+
+## Como prefere trabalhar
+
+**Comunicação:** ${S.comunicacao ? `Estilo ${S.comunicacao.toLowerCase()} — ${
+  S.comunicacao==='Direto' ? 'bullet points, respostas curtas, zero enrolação' :
+  S.comunicacao==='Analítico' ? 'dados, métricas, evidências concretas' :
+  S.comunicacao==='Detalhado' ? 'contexto completo, análise profunda quando necessário' :
+  'tom informal, como colega de trabalho'
+}` : '[PREENCHER]'}
+
+**Horário de trabalho:** ${S.horario_inicio || '09:00'} às ${S.horario_fim || '18:00'}
+
+**Personalidade esperada:** ${S.tom || '[PREENCHER]'}
+
+## Desafios Conhecidos
+
+${S.desafios.length ? S.desafios.map(d=>`- ${d}`).join('\n') : '- [LISTE OS PRINCIPAIS DESAFIOS]'}
+
+> O agente deve antecipar esses padrões e agir proativamente quando perceber esses comportamentos.
+
+## Ferramentas do dia a dia
+
+${S.ferramentas.length ? S.ferramentas.map(t=>`- ${t}`).join('\n') : '- [LISTE AS FERRAMENTAS QUE USA]'}
+
+## Objetivos de curto prazo
+
+${S.goals.length ? S.goals.map(g=>`- ${g}`).join('\n') : '- [PREENCHER]'}
+
+## O que NÃO fazer com este usuário
+
+${S.restricoes.length ? S.restricoes.map(r=>`- ❌ ${r} sem aprovação`).join('\n') : '- ❌ Agir sem confirmar em ações externas'}
+
+---
+*Gerado pelo Agente Config Claw — ${new Date().toLocaleDateString('pt-BR')}*`;
+}
+
+function gen_agents() {
+  const name = S.agentName || 'AGENTE';
+  const tools = S.ferramentas.slice(0,6);
+  return `# AGENTS.md — ${name}
+
+## Arquitetura do Agente
+
+Este arquivo define como **${name}** interage com outras ferramentas, APIs e sub-agentes.
+
+## Modelo Principal
+
+\`\`\`
+Modelo: claude-opus-4 / claude-sonnet-4 (fallback)
+Temperatura: ${S.tom==='Analítico' ? '0.2' : S.tom==='Parceiro' ? '0.8' : '0.5'}
+Max tokens: 8192
+Context window: full
+\`\`\`
+
+## Ferramentas Disponíveis
+
+${tools.length ? tools.map(t=>`### ${t}
+- **Acesso:** Leitura + Escrita
+- **Permissão:** ${S.restricoes.length && S.restricoes.some(r=>r.toLowerCase().includes(t.toLowerCase())) ? '⚠️ Requer confirmação' : '✅ Autônomo'}
+- **Uso:** [DESCREVA COMO O AGENTE USA ESTA FERRAMENTA]`).join('\n\n') : '### [FERRAMENTA]\n- Acesso: [leitura/escrita]\n- Permissão: [autônomo / requer confirmação]'}
+
+## MCP Servers
+
+\`\`\`json
+{
+  "mcpServers": {
+${tools.map(t=>`    "${t.toLowerCase().replace(/[^a-z]/g,'-')}": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-${t.toLowerCase().replace(/[^a-z]/g,'')}"]
+    }`).join(',\n') || '    // adicione seus MCP servers aqui'}
+  }
+}
+\`\`\`
+
+## Fluxo de Trabalho
+
+\`\`\`
+Entrada do usuário
+  → Lê contexto (SOUL.md, MEMORY.md)
+  → Decide ação (autônoma ou solicita aprovação)
+  → Executa via ferramentas disponíveis
+  → Atualiza MEMORY.md
+  → Reporta resultado
+\`\`\`
+
+## Sub-Agentes (quando necessário)
+
+| Sub-agente | Especialidade | Quando acionar |
+|-----------|--------------|---------------|
+| Pesquisador | Web search + síntese | Quando precisa de dados externos |
+| Executor | Ações em ferramentas | Para tasks paralelas |
+| Revisor | QA de output | Antes de enviar algo externo |
+
+## Nível de Autonomia: ${S.autonomia}%
+
+${S.autonomia >= 70 
+  ? '🟢 **Alta** — Age de forma proativa. Reporta ações tomadas, não pede aprovação para tarefas de baixo risco.'
+  : S.autonomia >= 40
+  ? '🟡 **Média** — Confirma ações externas. Age de forma autônoma internamente.'
+  : '🔴 **Conservador** — Confirma antes de qualquer ação. Prefere pedir a assumir.'}
+
+---
+*Gerado pelo Agente Config Claw — ${new Date().toLocaleDateString('pt-BR')}*`;
+}
+
+function gen_prd() {
+  if(!S.projeto_nome && !S.projeto_desc) return `# PRD.md\n\n> [Preencha o passo "Projeto & PRD" para gerar este arquivo]\n\n---\n*Gerado pelo Agente Config Claw — ${new Date().toLocaleDateString('pt-BR')}*`;
+  return `# PRD.md — ${S.projeto_nome || 'Projeto'}
+
+## Visão Geral
+
+**Projeto:** ${S.projeto_nome || '[NOME]'}
+**Data:** ${new Date().toLocaleDateString('pt-BR')}
+**Responsável:** ${S.userName || S.userFirstName || '[NOME]'}
+**Agente:** ${S.agentName || '[AGENTE]'}
+
+## Problema
+
+${S.projeto_desc || '[DESCREVA O PROBLEMA QUE ESTE PROJETO RESOLVE]'}
+
+## MVP
+
+${S.projeto_mvp || '[DESCREVA O ESCOPO MÍNIMO DO MVP]'}
+
+## Stack Técnica
+
+${S.projeto_stack.length ? S.projeto_stack.map(t=>`- ${t}`).join('\n') : '- [DEFINIR STACK]'}
+
+## KPIs de Sucesso
+
+${S.kpis.length ? S.kpis.map(k=>`- [ ] ${k}: [DEFINIR META]`).join('\n') : '- [ ] [DEFINIR MÉTRICAS]'}
+
+## Épicos e Features
+
+### 🔴 Prioridade Alta (MVP)
+- [ ] [Feature 1 — essencial para lançar]
+- [ ] [Feature 2 — core do produto]
+- [ ] [Feature 3 — necessário para funcionar]
+
+### 🟡 Prioridade Média (v1.1)
+- [ ] [Feature 4]
+- [ ] [Feature 5]
+
+### 🟢 Backlog (futuro)
+- [ ] [Feature 6]
+- [ ] [Feature 7]
+
+## Critérios de Aceite
+
+- [ ] Funciona nos casos de uso principais do usuário
+- [ ] Performance dentro do aceitável
+- [ ] Sem regressões em funcionalidades existentes
+
+## Riscos
+
+| Risco | Probabilidade | Impacto | Mitigação |
+|-------|-------------|---------|----------|
+| [Risco técnico] | Média | Alto | [Estratégia] |
+| [Risco de prazo] | Alta | Médio | [Estratégia] |
+
+## Roadmap
+
+\`\`\`
+Semana 1-2: Setup + arquitetura base
+Semana 3-4: Features core do MVP
+Semana 5:   Testes + ajustes
+Semana 6:   Lançamento MVP
+\`\`\`
+
+---
+*Gerado pelo Agente Config Claw — ${new Date().toLocaleDateString('pt-BR')}*`;
+}
+
+function gen_memory() {
+  const name = S.agentName || 'AGENTE';
+  const user = S.userFirstName || 'Usuário';
+  const itens = S.memoria_itens || [];
+  return `# MEMORY.md — ${name}
+
+> Arquivo de memória consolidada. Atualizado automaticamente.
+> Última atualização: ${new Date().toLocaleString('pt-BR')}
+
+## Contexto Ativo
+
+### Usuário
+- **Nome:** ${user}
+- **Área:** ${S.area || '[PREENCHER]'}
+- **Contexto:** ${S.userCtx ? S.userCtx.slice(0,120)+'...' : '[PREENCHER]'}
+
+### Projeto Principal
+- **Nome:** ${S.projeto_nome || '[NENHUM DEFINIDO]'}
+- **Status:** Em andamento
+- **Stack:** ${S.projeto_stack.slice(0,4).join(', ') || '[PREENCHER]'}
+
+---
+
+## Decisões Importantes
+
+${itens.includes('Decisões importantes') ? `| Data | Decisão | Racional |
+|------|---------|---------|
+| [DATA] | [DECISÃO] | [POR QUÊ] |` : '> Ativado — o agente registrará decisões aqui automaticamente.'}
+
+---
+
+## Tarefas em Aberto
+
+${itens.includes('Tarefas abertas') ? `- [ ] [TAREFA 1] — prazo: [DATA]
+- [ ] [TAREFA 2] — prioridade: alta
+- [ ] [TAREFA 3]` : '> Ativado — o agente manterá esta lista atualizada.'}
+
+---
+
+## Preferências Aprendidas
+
+${itens.includes('Preferências do usuário') ? `- Comunicação: ${S.comunicacao || 'padrão'}
+- Horário produtivo: ${S.horario_inicio} às ${S.horario_fim}
+- Tom preferido: ${S.tom || 'padrão'}
+- Desafios conhecidos: ${S.desafios.slice(0,3).join(', ') || 'nenhum registrado'}` : '> Ativado — o agente aprenderá preferências ao longo do tempo.'}
+
+---
+
+## Erros & Aprendizados
+
+${itens.includes('Erros e aprendizados') ? `| Erro | Aprendizado | Data |
+|------|------------|------|
+| [ERRO] | [O QUE MUDOU] | [DATA] |` : '> Inativo — ative em "Memória & Contexto" para registrar aprendizados.'}
+
+---
+
+## Contexto de Sessões Anteriores
+
+> [O agente consolida aqui os pontos principais de cada sessão automaticamente]
+
+---
+
+## Instruções para Atualização
+
+O agente deve atualizar este arquivo:
+${S.revisao_freq==='Por sessão' ? '- ✅ Ao final de cada conversa' :
+  S.revisao_freq==='Diária' ? '- ✅ Diariamente às 23h' :
+  S.revisao_freq==='Semanal' ? '- ✅ Toda segunda-feira às 08h' :
+  S.revisao_freq==='Contínua' ? '- ✅ Em tempo real, a cada mudança significativa' :
+  '- ✅ [DEFINIR FREQUÊNCIA]'}
+- Adicionar novas decisões, tarefas e aprendizados
+- Remover entradas obsoletas
+- Consolidar padrões identificados
+
+---
+*Gerado pelo Agente Config Claw — ${new Date().toLocaleDateString('pt-BR')}*`;
+}
+
+function gen_heartbeat() {
+  const name = S.agentName || 'AGENTE';
+  const freq_map = {
+    'Horário': 'A cada hora durante o expediente',
+    'Diário': 'Matinal (08h) + fechamento (18h)',
+    'Semanal': 'Segunda 08h + sexta 16h',
+    'Por Gatilho': 'Apenas quando eventos críticos ocorrem',
+  };
+  const itens = S.heartbeat_itens || [];
+  return `# HEARTBEAT.md — ${name}
+
+## Configuração
+
+**Frequência:** ${S.heartbeat_freq ? freq_map[S.heartbeat_freq] || S.heartbeat_freq : '[DEFINIR]'}
+**Canais:** ${S.notif_canais.join(', ') || '[DEFINIR]'}
+**Ativo:** ✅ Sim
+
+---
+
+## Template de Heartbeat
+
+\`\`\`
+🤖 ${name} | Heartbeat — {DATA} {HORA}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${itens.includes('Tarefas abertas') ? '📋 TAREFAS ABERTAS ({N})\n   • {TAREFA 1}\n   • {TAREFA 2}\n' : ''}${itens.includes('Próximos compromissos') ? '📅 PRÓXIMOS COMPROMISSOS\n   • {EVENTO} — {HORÁRIO}\n' : ''}${itens.includes('Métricas do dia') ? '📊 MÉTRICAS\n   • {MÉTRICA}: {VALOR}\n' : ''}${itens.includes('Alertas críticos') ? '🚨 ALERTAS\n   • {ALERTA SE HOUVER}\n' : ''}${itens.includes('Emails não respondidos') ? '📧 EMAILS SEM RESPOSTA: {N}\n' : ''}${itens.includes('Status do projeto') ? `🚀 PROJETO: ${S.projeto_nome || '{PROJETO}'} — {STATUS}\n` : ''}---
+💡 Insight do dia: {INSIGHT}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+\`\`\`
+
+---
+
+## Regras de Disparo
+
+${S.heartbeat_freq==='Horário' ? `\`\`\`cron
+0 9-18 * * 1-5  # Toda hora das 09h às 18h, seg-sex
+\`\`\`` :
+  S.heartbeat_freq==='Diário' ? `\`\`\`cron
+0 8 * * 1-5   # Matinal — seg-sex às 08h
+0 18 * * 1-5  # Fechamento — seg-sex às 18h
+\`\`\`` :
+  S.heartbeat_freq==='Semanal' ? `\`\`\`cron
+0 8 * * 1   # Segunda às 08h — planejamento
+0 16 * * 5  # Sexta às 16h — retrospectiva
+\`\`\`` :
+  '```\n# Disparado por gatilhos:\n# - Novo email urgente\n# - Deadline se aproximando (< 24h)\n# - Erro crítico detectado\n# - Mudança de status em projeto\n```'}
+
+---
+
+## Checklist de Heartbeat
+
+- [ ] Verificar agenda e compromissos do período
+${itens.includes('Emails não respondidos') ? '- [ ] Verificar emails não respondidos' : ''}
+${itens.includes('Tarefas abertas') ? '- [ ] Atualizar lista de tarefas abertas' : ''}
+${itens.includes('Métricas do dia') ? '- [ ] Coletar e consolidar métricas' : ''}
+${itens.includes('Alertas críticos') ? '- [ ] Verificar alertas e anomalias' : ''}
+${itens.includes('Status do projeto') ? '- [ ] Atualizar status dos projetos ativos' : ''}
+- [ ] Consolidar memória da sessão
+- [ ] Reportar nos canais configurados
+
+---
+*Gerado pelo Agente Config Claw — ${new Date().toLocaleDateString('pt-BR')}*`;
+}
+
+const FILE_GENS = {
+  soul: gen_soul, user: gen_user, agents: gen_agents,
+  prd: gen_prd, memory: gen_memory, heartbeat: gen_heartbeat
+};
+
+// ══════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════
+function toggleArr(key, val) {
+  if(!S[key]) S[key]=[];
+  const i = S[key].indexOf(val);
+  if(i>=0) S[key].splice(i,1); else S[key].push(val);
+}
+
+function countFields(gen) {
+  const txt = gen();
+  return (txt.match(/\[(?!PREENCHER\]|DEFINIR\]|NOME\]|DATA\])[^\]]+\]/g)||[]).length;
+}
+
+function scoreFile(id) {
+  const g = FILE_GENS[id];
+  if(!g) return 0;
+  const txt = g();
+  const blanks = (txt.match(/\[(?:PREENCHER|DEFINIR)[^\]]*\]/g)||[]).length;
+  const total = Math.max(txt.split('\n').filter(l=>l.trim()).length, 1);
+  return Math.min(100, Math.round((1 - blanks/(blanks+5)) * 100));
+}
+
+function updateScores() {
+  const ids = ['soul','user','agents','prd','memory','heartbeat'];
+  const scores = ids.map(id=>scoreFile(id));
+  const avg = Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
+  document.getElementById('score-num').textContent = avg+'%';
+  document.getElementById('score-fill').style.width = avg+'%';
+  ids.forEach((id,i)=>{
+    const fc = document.getElementById('fc-'+id);
+    const fn = document.getElementById('fn-'+id);
+    if(fc){ fc.textContent = scores[i]+'%'; fc.className = 'file-count'+(scores[i]>50?' done':''); }
+    if(fn){ fn.className = 'file-name'+(scores[i]>30?' active':''); }
+  });
+  // score label
+  const labels = ['','BÁSICO','BÁSICO','FUNCIONAL','FUNCIONAL','AVANÇADO','AVANÇADO','COMPLETO','COMPLETO','ESPECIALISTA','ESPECIALISTA','AGENTE COMPLETO'];
+  const li = Math.min(Math.floor(avg/10), 11);
+  document.getElementById('score-num').nextSibling.textContent = '';
+  document.querySelector('.score-label').textContent = labels[li] || 'AGENTE';
+}
+
+function updatePreview() {
+  const gen = FILE_GENS[currentTab];
+  if(!gen) return;
+  document.getElementById('preview-code').textContent = gen();
+}
+
+function switchTab(file) {
+  currentTab = file;
+  document.querySelectorAll('.preview-tab').forEach(t=>{
+    t.classList.toggle('active', t.dataset.file===file);
+  });
+  updatePreview();
+}
+
+function copyCurrentFile() {
+  const gen = FILE_GENS[currentTab];
+  if(!gen) return;
+  navigator.clipboard.writeText(gen()).then(()=>{
+    const btn = document.querySelector('.btn-copy');
+    btn.textContent = '✓ Copiado';
+    setTimeout(()=>btn.textContent='⌘ Copiar', 1500);
+  });
+}
+
+function updateProgress() {
+  const pct = Math.round((S.step / STEPS.length) * 100);
+  document.getElementById('progress-fill').style.width = pct+'%';
+  document.getElementById('pct-label').textContent = pct+'%';
+  document.getElementById('step-label').textContent = `Passo ${S.step+1} de ${STEPS.length}`;
+}
+
+function nextStep() {
+  if(S.step < STEPS.length-1){ S.step++; renderStep(); }
+}
+function prevStep() {
+  if(S.step > 0){ S.step--; renderStep(); }
+}
+
+// ══════════════════════════════════════════════════════
+//  FINISH
+// ══════════════════════════════════════════════════════
+function finish() {
+  const screen = document.getElementById('result-screen');
+  screen.classList.add('show');
+  
+  document.getElementById('result-sub').textContent = 
+    `${S.agentName||'Seu agente'} está pronto. ${S.userFirstName ? `Bom trabalho, ${S.userFirstName}!` : ''}`;
+
+  const files = [
+    {id:'soul', label:'SOUL.md', color:'#c8ff00'},
+    {id:'user', label:'USER.md', color:'#00cfff'},
+    {id:'agents', label:'AGENTS.md', color:'#ff9f4f'},
+    {id:'prd', label:'PRD.md', color:'#c084fc'},
+    {id:'memory', label:'MEMORY.md', color:'#ff4f4f'},
+    {id:'heartbeat', label:'HEARTBEAT.md', color:'#4fffb8'},
+  ];
+
+  const grid = document.getElementById('files-grid');
+  grid.innerHTML = files.map(f=>{
+    const content = FILE_GENS[f.id]();
+    return `<div class="file-card">
+      <div class="file-card-header">
+        <div class="file-card-name" style="color:${f.color}">${f.label}</div>
+        <button class="btn-copy" onclick="dlFile('${f.id}','${f.label}')" style="font-family:var(--font-mono);font-size:11px;padding:5px 12px;border-radius:4px;background:var(--surf2);border:1.5px solid var(--brd);color:var(--muted);cursor:pointer">⬇ .md</button>
+      </div>
+      <div class="file-card-body"><pre>${escHtml(content)}</pre></div>
+    </div>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function dlFile(id, label) {
+  const content = FILE_GENS[id]();
+  const blob = new Blob([content], {type:'text/markdown'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = label;
+  a.click();
+}
+
+function downloadAll() {
+  const files = ['soul','user','agents','prd','memory','heartbeat'];
+  const labels = {soul:'SOUL.md',user:'USER.md',agents:'AGENTS.md',prd:'PRD.md',memory:'MEMORY.md',heartbeat:'HEARTBEAT.md'};
+  files.forEach(id => dlFile(id, labels[id]));
+}
+
+function copyAll() {
+  const files = ['soul','user','agents','prd','memory','heartbeat'];
+  const labels = {soul:'SOUL.md',user:'USER.md',agents:'AGENTS.md',prd:'PRD.md',memory:'MEMORY.md',heartbeat:'HEARTBEAT.md'};
+  const all = files.map(id=>`# ═══ ${labels[id]} ═══\n\n${FILE_GENS[id]()}`).join('\n\n\n');
+  navigator.clipboard.writeText(all);
+}
+
+// ── Boot ──────────────────────────────────────────────
+renderStep();
+</script>
+</body>
+</html>
